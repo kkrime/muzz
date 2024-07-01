@@ -28,6 +28,7 @@ func init() {
 type Service interface {
 	CreateUser(ctx context.Context) (*model.CreatedUser, error)
 	Login(ctx context.Context, email string, password string) (bool, string, error)
+	Discover(ctx context.Context, userId int) ([]model.Discover, error)
 }
 
 type service struct {
@@ -135,4 +136,8 @@ func (s *service) CreateUser(ctx context.Context) (*model.CreatedUser, error) {
 		Gender:   gender_,
 		Age:      age,
 	}, nil
+}
+
+func (s *service) Discover(ctx context.Context, userID int) ([]model.Discover, error) {
+	return s.db.Discover(ctx, "1")
 }

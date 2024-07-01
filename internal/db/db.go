@@ -22,8 +22,8 @@ type DB interface {
 		password []byte,
 		gender string,
 		dob time.Time) (int, error)
-
 	GetUserPassword(ctx context.Context, email string) (*model.UserPassword, error)
+	Discover(ctx context.Context, UserId string) ([]model.Discover, error)
 }
 
 type db struct {
@@ -122,5 +122,41 @@ func (d *db) GetUserPassword(ctx context.Context, email string) (*model.UserPass
 	}
 
 	return &userPassword[0], nil
+}
 
+func (d *db) Discover(ctx context.Context, UserID string) ([]model.Discover, error) {
+	var discover []model.Discover
+
+	statement := `
+		SELECT
+			id, first_name || ' ' || last_name AS name, gender, DATE_PART('year', AGE(dob)) AS age,
+				CEIL((
+					SELECT 
+						ST_DISTANCE
+						(
+							(SELECT location FROM login WHERE user_id = 1 ORDER BY created_at DESC LIMIT 1),
+							(SELECT location FROM login WHERE user_id = id ORDER BY created_at DESC LIMIT 1)
+						) / 1609.34 
+				)) AS distance
+		FROM
+			users
+		WHERE
+			gender = (
+									CASE (SELECT gender FROM users WHERE id = 1)
+										WHEN 'M'::gender THEN 'F'::gender
+										WHEN 'F'::gender THEN 'M'::gender
+									END
+								)
+		ORDER BY 
+			distance
+			DESC
+		LIMIT 20
+	;`
+
+	err := d.db.SelectContext(ctx, &discover, statement)
+	if err != nil {
+		return nil, err
+	}
+
+	return discover, nil
 }

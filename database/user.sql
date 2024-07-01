@@ -2,11 +2,14 @@ DROP DATABASE muzz;
 CREATE DATABASE muzz;
 
 \connect muzz
+CREATE EXTENSION postgis;
 
 CREATE TYPE public.gender AS ENUM (
 	'M',
 	'F'
 );
+
+-- TODO: add indexes
 
 CREATE TABLE public.users(
   id SERIAL NOT NULL PRIMARY KEY,
@@ -21,6 +24,12 @@ CREATE TABLE public.users(
 	deleted_at TIMESTAMP DEFAULT NULL
 );
 
+CREATE TABLE public.login(
+  -- id SERIAL NOT NULL PRIMARY KEY,
+  user_id INTEGER NOT NULL REFERENCES public.users(id),
+  location GEOGRAPHY(POINT, 4326) NOT NULL,
+	created_at TIMESTAMP DEFAULT NOW()
+);
 
 -- CREATE INDEX name_city ON public.ports(name);
 -- CREATE INDEX name_city ON public.ports(primary_unloc);

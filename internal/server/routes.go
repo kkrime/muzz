@@ -14,6 +14,7 @@ type Server interface {
 	Run() error
 	Login() httprouter.Handle
 	CreateUser() httprouter.Handle
+	Discover() httprouter.Handle
 }
 
 type server struct {
@@ -35,6 +36,7 @@ func NewServer(config *config.DBConfig) (Server, error) {
 
 	router.POST("/login", server.Login())
 	router.GET("/user/create", server.CreateUser())
+	router.GET("/discover", server.Discover())
 
 	return server, nil
 }
@@ -89,6 +91,25 @@ func (s *server) CreateUser() httprouter.Handle {
 		var result model.Result
 
 		res, err := s.service.CreateUser(r.Context())
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			result.Error = err.Error()
+		} else {
+			w.WriteHeader(http.StatusCreated)
+			result.Result = res
+		}
+
+		json.NewEncoder(w).Encode(&result)
+	}
+}
+
+func (s *server) Discover() httprouter.Handle {
+
+	return func(w http.ResponseWriter, r *http.Request, pr httprouter.Params) {
+
+		var result model.Result
+
+		res, err := s.service.Discover(r.Context(), 1)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			result.Error = err.Error()
