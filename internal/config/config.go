@@ -6,15 +6,16 @@ import (
 	"github.com/spf13/viper"
 )
 
-type DBConfig struct {
+type Config struct {
 	Host     string `mapstructure:"DB_HOST"`
 	Port     int64  `mapstructure:"DB_PORT"`
 	User     string `mapstructure:"DB_USER"`
 	Password string `mapstructure:"DB_PASSWORD"`
 	DBname   string `mapstructure:"DB_NAME"`
+	TokenKey string `mapstructure:"TOKEN_KEY"`
 }
 
-func ReadConfig() (*DBConfig, error) {
+func ReadConfig() (*Config, error) {
 	v := viper.New()
 	v.AddConfigPath(".")
 	v.SetConfigFile(".env")
@@ -24,7 +25,7 @@ func ReadConfig() (*DBConfig, error) {
 		fmt.Printf("error reading file = %+v\n", err)
 	}
 
-	config := &DBConfig{}
+	config := &Config{}
 	err = v.Unmarshal(config)
 
 	return config, err

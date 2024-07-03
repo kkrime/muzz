@@ -14,6 +14,12 @@ import (
 	_ "github.com/lib/pq"
 )
 
+// helper interface
+// had to make exported so I can make mock for testing
+type Tx interface {
+	Commit() error
+}
+
 type DB interface {
 	BeginTx(ctx context.Context) (*sql.Tx, error)
 	Login(tx *sql.Tx, userID int, long float64, lat float64) error
@@ -29,13 +35,14 @@ type DB interface {
 	Discover(ctx context.Context, UserId int) ([]model.Discover, error)
 	Swipe(ctx context.Context, currentUserID int, theirUserID int, swipeRight bool) error
 	Match(ctx context.Context, currentUserID int, theirUserID int) (bool, error)
+	Commit(t Tx) error
 }
 
 type db struct {
 	db *sqlx.DB
 }
 
-func NewDB(config *config.DBConfig) (DB, error) {
+func NewDB(config *config.Config) (DB, error) {
 
 	dsn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable",
 		config.Host, config.Port, config.User, config.Password, config.DBname)
@@ -44,13 +51,6 @@ func NewDB(config *config.DBConfig) (DB, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	// dbLog := logger.CreateNewLogger()
-
-	// db.DB = sqldblogger.OpenDriver(dsn, db.DB.Driver(), logrusadapter.New(dbLog),
-	// 	sqldblogger.WithTimeFormat(sqldblogger.TimeFormatRFC3339),
-	// 	sqldblogger.WithLogDriverErrorSkip(true),
-	// 	sqldblogger.WithSQLQueryAsMessage(true))
 
 	err = db_.Ping()
 	if err != nil {
@@ -155,6 +155,7 @@ func (d *db) Discover(ctx context.Context, UserID int) ([]model.Discover, error)
 			users
 	) AS results
 	WHERE
+		-- filter by gender
 		gender =  (
 								CASE (SELECT gender FROM users WHERE id = 1)
 									WHEN 'M'::gender THEN 'F'::gender
@@ -162,6 +163,7 @@ func (d *db) Discover(ctx context.Context, UserID int) ([]model.Discover, error)
 								END
 							) 
 		AND
+		-- filter by age
 		age >= 21 AND age <= 35
 		AND 
 		distance IS NOT NULL -- corner case for users who have signed up but not logged in yet
@@ -244,4 +246,8 @@ func (d *db) Match(ctx context.Context, currentUserID int, theirUserID int) (boo
 
 	return match, err
 
+}
+
+func (d *db) Commit(t Tx) error {
+	return t.Commit()
 }

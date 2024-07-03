@@ -4,17 +4,15 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"muzz/internal/client"
 	"muzz/internal/config"
 	"muzz/internal/db"
 	"muzz/internal/model"
+	"muzz/internal/security"
 	"regexp"
 	"time"
 
 	"github.com/0x6flab/namegenerator"
-	"github.com/golang-jwt/jwt"
 	"github.com/sethvargo/go-password/password"
-	"golang.org/x/crypto/bcrypt"
 	"golang.org/x/exp/rand"
 )
 
@@ -34,21 +32,21 @@ type Service interface {
 }
 
 type service struct {
-	db         db.DB
-	httpClient client.HttpClient
+	db       db.DB
+	security security.Security
 }
 
-func NewService(config *config.DBConfig) (Service, error) {
+func NewService(config *config.Config) (Service, error) {
 	db, err := db.NewDB(config)
 	if err != nil {
 		return nil, err
 	}
 
-	httpClient := client.NewHttpClient()
+	security := security.NewSecurity(config.TokenKey)
 
 	return &service{
-		db:         db,
-		httpClient: httpClient,
+		db:       db,
+		security: security,
 	}, nil
 }
 
@@ -88,17 +86,14 @@ func (s *service) Login(ctx context.Context, login *model.Login) (string, error)
 		}
 	}()
 
-	err = bcrypt.CompareHashAndPassword([]byte(userPassword.Password), []byte(login.Password))
+	err = s.security.ComparePassword(userPassword.Password, login.Password)
 	if err != nil {
 		return "", err
 	}
 
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+	token, err := s.security.CreateToken(map[string]any{
 		"userID": userID,
 	})
-
-	// TODO add secret to .env
-	tokenString, err := token.SignedString([]byte("secret"))
 	if err != nil {
 		return "", err
 	}
@@ -108,9 +103,12 @@ func (s *service) Login(ctx context.Context, login *model.Login) (string, error)
 		return "", err
 	}
 
-	tx.Commit()
+	err = s.db.Commit(tx)
+	if err != nil {
+		return "", err
+	}
 
-	return tokenString, nil
+	return token, nil
 }
 
 func (s *service) CreateUser(ctx context.Context) (*model.CreatedUser, error) {
@@ -144,7 +142,8 @@ func (s *service) CreateUser(ctx context.Context) (*model.CreatedUser, error) {
 	if err != nil {
 		return nil, err
 	}
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), 15)
+	// hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), 15)
+	hashedPassword, err := s.security.GeneratePassword(password)
 	if err != nil {
 		return nil, err
 	}

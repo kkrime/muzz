@@ -27,7 +27,7 @@ type server struct {
 	router  *httprouter.Router
 }
 
-func NewServer(config *config.DBConfig) (Server, error) {
+func NewServer(config *config.Config) (Server, error) {
 	servive, err := service.NewService(config)
 	if err != nil {
 		return nil, err
