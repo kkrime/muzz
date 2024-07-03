@@ -27,6 +27,8 @@ type DB interface {
 		dob time.Time) (int, error)
 	GetUserPassword(ctx context.Context, email string) (*model.UserPassword, error)
 	Discover(ctx context.Context, UserId int) ([]model.Discover, error)
+	Swipe(ctx context.Context, currentUserID int, theirUserID int, swipeRight bool) error
+	Match(ctx context.Context, currentUserID int, theirUserID int) (bool, error)
 }
 
 type db struct {
@@ -135,7 +137,8 @@ func (d *db) Discover(ctx context.Context, UserID int) ([]model.Discover, error)
 	var discover []model.Discover
 
 	statement := `
-	SELECT id, name, gender, age, distance 
+	SELECT 
+		id, name, gender, age, distance 
 	FROM 
 	(
 		SELECT
@@ -162,10 +165,13 @@ func (d *db) Discover(ctx context.Context, UserID int) ([]model.Discover, error)
 		age >= 21 AND age <= 35
 		AND 
 		distance IS NOT NULL -- corner case for users who have signed up but not logged in yet
+	  AND
+	  -- filter profiles already swipped on
+	  id NOT IN (SELECT id FROM swipe WHERE user_id = $1 AND their_user_id = id)
 	LIMIT 20
 	;`
 
-	err := d.db.SelectContext(ctx, &discover, statement)
+	err := d.db.SelectContext(ctx, &discover, statement, 1)
 	if err != nil {
 		return nil, err
 	}
@@ -192,4 +198,50 @@ func (d *db) Login(tx *sql.Tx, userID int, long float64, lat float64) error {
 	_, err := tx.Query(statement, userID, long, lat)
 
 	return err
+}
+
+func (d *db) Swipe(ctx context.Context, currentUserID int, theirUserID int, swipeRight bool) error {
+
+	statement := `
+		INSERT INTO
+			swipe
+			(
+				user_id,
+				their_user_id,
+				swipe_right
+			)
+		VALUES
+			(
+				$1,
+				$2,
+				$3
+			)
+	;`
+
+	_, err := d.db.Query(statement, currentUserID, theirUserID, swipeRight)
+
+	return err
+
+}
+
+func (d *db) Match(ctx context.Context, currentUserID int, theirUserID int) (bool, error) {
+
+	var match bool
+
+	statement := `
+		SELECT 
+		( 
+			COALESCE
+			( 
+				(SELECT TRUE FROM swipe WHERE user_id = $1 AND their_user_id = $2 AND swipe_right = TRUE LIMIT 1) 
+				AND 
+				(SELECT TRUE FROM swipe WHERE user_id = $2 AND their_user_id = $1 AND swipe_right = TRUE LIMIT 1)
+			, 'f')
+			)	AS match
+		;`
+
+	err := d.db.QueryRowContext(ctx, statement, currentUserID, theirUserID).Scan(&match)
+
+	return match, err
+
 }

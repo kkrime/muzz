@@ -19,6 +19,7 @@ type Server interface {
 	Login() httprouter.Handle
 	CreateUser() httprouter.Handle
 	Discover() httprouter.Handle
+	Swipe() httprouter.Handle
 }
 
 type server struct {
@@ -41,6 +42,7 @@ func NewServer(config *config.DBConfig) (Server, error) {
 	router.POST("/login", server.Login())
 	router.GET("/user/create", server.CreateUser())
 	router.GET("/discover", server.Discover())
+	router.POST("/swipe", server.Swipe())
 
 	return server, nil
 }
@@ -133,12 +135,46 @@ func (s *server) Discover() httprouter.Handle {
 	}
 }
 
+func (s *server) Swipe() httprouter.Handle {
+
+	return func(w http.ResponseWriter, r *http.Request, pr httprouter.Params) {
+		var result model.Result
+
+		userID, err := authorize(r)
+		if err != nil {
+			w.WriteHeader(http.StatusUnauthorized)
+			result.Error = err.Error()
+			json.NewEncoder(w).Encode(&result)
+			return
+		}
+
+		var swipe model.Swipe
+		err = json.NewDecoder(r.Body).Decode(&swipe)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			result.Error = "bad input"
+			json.NewEncoder(w).Encode(&result)
+			return
+		}
+
+		res, err := s.service.Swipe(r.Context(), userID, swipe.UserID, swipe.SwipeRight)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			result.Error = err.Error()
+		} else {
+			w.WriteHeader(http.StatusOK)
+			result.Result = res
+		}
+
+		json.NewEncoder(w).Encode(&result)
+	}
+}
+
 func authorize(r *http.Request) (int, error) {
 	var claims = jwt.MapClaims{}
 	token, err := request.ParseFromRequestWithClaims(r, request.AuthorizationHeaderExtractor, &claims, func(token *jwt.Token) (interface{}, error) {
 		return []byte("secret"), nil
 	})
-	fmt.Printf("claims = %+v\n", claims)
 
 	if err != nil {
 		return 0, err

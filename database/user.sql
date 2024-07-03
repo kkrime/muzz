@@ -25,9 +25,17 @@ CREATE TABLE public.users(
 );
 
 CREATE TABLE public.login(
-  -- id SERIAL NOT NULL PRIMARY KEY,
+  id SERIAL NOT NULL PRIMARY KEY,
   user_id INTEGER NOT NULL REFERENCES public.users(id),
   location GEOGRAPHY(POINT, 4326) NOT NULL,
+	created_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE public.swipe(
+  id SERIAL NOT NULL PRIMARY KEY,
+  user_id INTEGER NOT NULL REFERENCES public.users(id),
+  their_user_id INTEGER NOT NULL REFERENCES public.users(id),
+  swipe_right BOOLEAN NOT NULL,
 	created_at TIMESTAMP DEFAULT NOW()
 );
 

@@ -32,3 +32,13 @@ type Discover struct {
 	Age            int    `json:"age" db:"age"`
 	DistanceFromMe string `json:"distanceFromMe,omitempty" db:"distance"`
 }
+
+type Swipe struct {
+	UserID     int  `json:"user_id"`
+	SwipeRight bool `json:"swipe_right"`
+}
+
+type Match struct {
+	Matched bool `json:"matched"`
+	MatchID int  `json:"match_id,omitempty"`
+}

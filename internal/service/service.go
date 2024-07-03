@@ -30,6 +30,7 @@ type Service interface {
 	CreateUser(ctx context.Context) (*model.CreatedUser, error)
 	Login(ctx context.Context, login *model.Login) (string, error)
 	Discover(ctx context.Context, userId int) ([]model.Discover, error)
+	Swipe(ctx context.Context, currentUserID int, theirUserID int, swipeRight bool) (*model.Match, error)
 }
 
 type service struct {
@@ -172,4 +173,27 @@ func (s *service) CreateUser(ctx context.Context) (*model.CreatedUser, error) {
 
 func (s *service) Discover(ctx context.Context, userID int) ([]model.Discover, error) {
 	return s.db.Discover(ctx, userID)
+}
+
+func (s *service) Swipe(ctx context.Context, currentUserID int, theirUserID int, swipeRight bool) (*model.Match, error) {
+	var out model.Match
+
+	// sql transactions are atomic, so no need to do any locking to avoid race conditions
+	// where two usrs swipe right for each other at the same tiem
+	err := s.db.Swipe(ctx, currentUserID, theirUserID, swipeRight)
+	if err != nil {
+		return nil, err
+	}
+
+	match, err := s.db.Match(ctx, currentUserID, theirUserID)
+	if err != nil {
+		return nil, err
+	}
+
+	out.Matched = match
+	if match {
+		out.MatchID = theirUserID
+	}
+
+	return &out, nil
 }
