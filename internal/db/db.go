@@ -2,6 +2,7 @@ package db
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"muzz/internal/config"
 	"muzz/internal/model"
@@ -14,8 +15,10 @@ import (
 )
 
 type DB interface {
+	BeginTx(ctx context.Context) (*sql.Tx, error)
+	Login(tx *sql.Tx, userID int, long float64, lat float64) error
 	CreateUser(
-		ctc context.Context,
+		ctx context.Context,
 		firstName string,
 		lastName string,
 		email string,
@@ -23,7 +26,7 @@ type DB interface {
 		gender string,
 		dob time.Time) (int, error)
 	GetUserPassword(ctx context.Context, email string) (*model.UserPassword, error)
-	Discover(ctx context.Context, UserId string) ([]model.Discover, error)
+	Discover(ctx context.Context, UserId int) ([]model.Discover, error)
 }
 
 type db struct {
@@ -55,6 +58,10 @@ func NewDB(config *config.DBConfig) (DB, error) {
 	return &db{
 		db: db_,
 	}, nil
+}
+
+func (d *db) BeginTx(ctx context.Context) (*sql.Tx, error) {
+	return d.db.BeginTx(ctx, nil)
 }
 
 func (d *db) CreateUser(
@@ -124,10 +131,13 @@ func (d *db) GetUserPassword(ctx context.Context, email string) (*model.UserPass
 	return &userPassword[0], nil
 }
 
-func (d *db) Discover(ctx context.Context, UserID string) ([]model.Discover, error) {
+func (d *db) Discover(ctx context.Context, UserID int) ([]model.Discover, error) {
 	var discover []model.Discover
 
 	statement := `
+	SELECT id, name, gender, age, distance 
+	FROM 
+	(
 		SELECT
 			id, first_name || ' ' || last_name AS name, gender, DATE_PART('year', AGE(dob)) AS age,
 				CEIL((
@@ -140,17 +150,19 @@ func (d *db) Discover(ctx context.Context, UserID string) ([]model.Discover, err
 				)) AS distance
 		FROM
 			users
-		WHERE
-			gender = (
-									CASE (SELECT gender FROM users WHERE id = 1)
-										WHEN 'M'::gender THEN 'F'::gender
-										WHEN 'F'::gender THEN 'M'::gender
-									END
-								)
-		ORDER BY 
-			distance
-			DESC
-		LIMIT 20
+	) AS results
+	WHERE
+		gender =  (
+								CASE (SELECT gender FROM users WHERE id = 1)
+									WHEN 'M'::gender THEN 'F'::gender
+									WHEN 'F'::gender THEN 'M'::gender
+								END
+							) 
+		AND
+		age >= 21 AND age <= 35
+		AND 
+		distance IS NOT NULL -- corner case for users who have signed up but not logged in yet
+	LIMIT 20
 	;`
 
 	err := d.db.SelectContext(ctx, &discover, statement)
@@ -159,4 +171,25 @@ func (d *db) Discover(ctx context.Context, UserID string) ([]model.Discover, err
 	}
 
 	return discover, nil
+}
+
+func (d *db) Login(tx *sql.Tx, userID int, long float64, lat float64) error {
+
+	statement := `
+		INSERT INTO
+			login
+			(
+				user_id,
+				location
+			)
+		VALUES
+			(
+				$1,
+				ST_SetSRID(ST_MakePoint($2, $3), 4326)::GEOGRAPHY
+			)
+	;`
+
+	_, err := tx.Query(statement, userID, long, lat)
+
+	return err
 }

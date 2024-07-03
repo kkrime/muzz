@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"muzz/internal/client"
 	"muzz/internal/config"
@@ -27,7 +28,7 @@ func init() {
 
 type Service interface {
 	CreateUser(ctx context.Context) (*model.CreatedUser, error)
-	Login(ctx context.Context, email string, password string) (bool, string, error)
+	Login(ctx context.Context, login *model.Login) (string, error)
 	Discover(ctx context.Context, userId int) ([]model.Discover, error)
 }
 
@@ -50,34 +51,65 @@ func NewService(config *config.DBConfig) (Service, error) {
 	}, nil
 }
 
-func (s *service) Login(ctx context.Context, email string, password string) (bool, string, error) {
+func (s *service) Login(ctx context.Context, login *model.Login) (string, error) {
 
-	userPassword, err := s.db.GetUserPassword(ctx, email)
+	userPassword, err := s.db.GetUserPassword(ctx, login.Email)
 	if err != nil {
-		return false, "", err
+		return "", err
 	}
 
 	// user not found
 	if userPassword == nil {
-		return false, "", nil
+		return "", nil
 	}
+	userID := userPassword.ID
 
-	err = bcrypt.CompareHashAndPassword([]byte(userPassword.Password), []byte(password))
+	// NOTE; I'm writing to the login table using a go routine to "improve performance"
+	// realistically, this isn't going to make a world of difference, as the commit still needs
+	// to go over the network. However, this does give me an opportunity to use goroutin/channel
+	// and demonstrate my understanding of go and performance.
+	chann := make(chan error, 1)
+	var tx *sql.Tx
+	txCtx, cancelTxCtx := context.WithCancel(ctx)
+	go func() {
+		tx, err = s.db.BeginTx(txCtx)
+		if err != nil {
+			chann <- err
+			return
+		}
+		chann <- s.db.Login(tx, userID, login.Long, login.Lat)
+	}()
+
+	defer func() {
+		if err != nil {
+			// will have the same effect as tx.Rollback()
+			cancelTxCtx()
+		}
+	}()
+
+	err = bcrypt.CompareHashAndPassword([]byte(userPassword.Password), []byte(login.Password))
 	if err != nil {
-		return false, "", nil
+		return "", err
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"userID": userPassword.ID,
-		"nbf":    time.Date(2015, 10, 10, 12, 0, 0, 0, time.UTC).Unix(),
+		"userID": userID,
 	})
 
 	// TODO add secret to .env
 	tokenString, err := token.SignedString([]byte("secret"))
+	if err != nil {
+		return "", err
+	}
 
-	fmt.Println(tokenString, err)
+	err = <-chann
+	if err != nil {
+		return "", err
+	}
 
-	return true, tokenString, nil
+	tx.Commit()
+
+	return tokenString, nil
 }
 
 func (s *service) CreateUser(ctx context.Context) (*model.CreatedUser, error) {
@@ -139,5 +171,5 @@ func (s *service) CreateUser(ctx context.Context) (*model.CreatedUser, error) {
 }
 
 func (s *service) Discover(ctx context.Context, userID int) ([]model.Discover, error) {
-	return s.db.Discover(ctx, "1")
+	return s.db.Discover(ctx, userID)
 }

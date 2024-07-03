@@ -2,11 +2,15 @@ package server
 
 import (
 	"encoding/json"
+	"errors"
+	"fmt"
 	"muzz/internal/config"
 	"muzz/internal/model"
 	"muzz/internal/service"
 	"net/http"
 
+	"github.com/golang-jwt/jwt"
+	"github.com/golang-jwt/jwt/request"
 	"github.com/julienschmidt/httprouter"
 )
 
@@ -60,7 +64,7 @@ func (s *server) Login() httprouter.Handle {
 			return
 		}
 
-		success, token, err := s.service.Login(r.Context(), login.Email, login.Password)
+		token, err := s.service.Login(r.Context(), &login)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			result.Error = err.Error()
@@ -68,7 +72,7 @@ func (s *server) Login() httprouter.Handle {
 			return
 		}
 
-		if !success {
+		if token == "" {
 			w.WriteHeader(http.StatusUnauthorized)
 			result.Error = "bad username or password"
 			json.NewEncoder(w).Encode(&result)
@@ -106,10 +110,17 @@ func (s *server) CreateUser() httprouter.Handle {
 func (s *server) Discover() httprouter.Handle {
 
 	return func(w http.ResponseWriter, r *http.Request, pr httprouter.Params) {
-
 		var result model.Result
 
-		res, err := s.service.Discover(r.Context(), 1)
+		userID, err := authorize(r)
+		if err != nil {
+			w.WriteHeader(http.StatusUnauthorized)
+			result.Error = err.Error()
+			json.NewEncoder(w).Encode(&result)
+			return
+		}
+
+		res, err := s.service.Discover(r.Context(), userID)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			result.Error = err.Error()
@@ -120,4 +131,29 @@ func (s *server) Discover() httprouter.Handle {
 
 		json.NewEncoder(w).Encode(&result)
 	}
+}
+
+func authorize(r *http.Request) (int, error) {
+	var claims = jwt.MapClaims{}
+	token, err := request.ParseFromRequestWithClaims(r, request.AuthorizationHeaderExtractor, &claims, func(token *jwt.Token) (interface{}, error) {
+		return []byte("secret"), nil
+	})
+	fmt.Printf("claims = %+v\n", claims)
+
+	if err != nil {
+		return 0, err
+	}
+
+	if !token.Valid {
+		return 0, errors.New("invalid token")
+	}
+
+	// for some reason jwt packages ints as float64
+	userID, ok := claims["userID"].(float64)
+	if !ok || userID == 0 {
+		// log error
+		return 0, fmt.Errorf("unable to get userID from claim. token:  %v", token)
+	}
+
+	return int(userID), nil
 }

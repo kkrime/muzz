@@ -1,8 +1,10 @@
 package model
 
 type Login struct {
-	Email    string `json:"email"`
-	Password string `json:"password"`
+	Email    string  `json:"email"`
+	Password string  `json:"password"`
+	Long     float64 `json:"long"`
+	Lat      float64 `json:"lat"`
 }
 
 type CreatedUser struct {
