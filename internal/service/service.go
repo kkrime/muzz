@@ -17,8 +17,8 @@ import (
 )
 
 var nameRegex *regexp.Regexp
-var minAge = 18
-var maxAge = 70
+var minAge = 21
+var maxAge = 35
 
 func init() {
 	nameRegex = regexp.MustCompile(`^(\w+)-(\w+)$`)
@@ -52,6 +52,7 @@ func NewService(config *config.Config) (Service, error) {
 
 func (s *service) Login(ctx context.Context, login *model.Login) (string, error) {
 
+	ctx.Deadline()
 	userPassword, err := s.db.GetUserPassword(ctx, login.Email)
 	if err != nil {
 		return "", err

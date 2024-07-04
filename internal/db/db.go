@@ -52,6 +52,9 @@ func NewDB(config *config.Config) (DB, error) {
 		return nil, err
 	}
 
+	// db_.DB.SetMaxIdleConns(100)
+	// db_.DB.SetMaxOpenConns(100)
+
 	err = db_.Ping()
 	if err != nil {
 		return nil, err
@@ -133,12 +136,13 @@ func (d *db) GetUserPassword(ctx context.Context, email string) (*model.UserPass
 	return &userPassword[0], nil
 }
 
-func (d *db) Discover(ctx context.Context, UserID int) ([]model.Discover, error) {
+func (d *db) Discover(ctx context.Context, userID int) ([]model.Discover, error) {
 	var discover []model.Discover
 
 	statement := `
 	SELECT 
 		id, name, gender, age, distance 
+		-- id, name, gender, age
 	FROM 
 	(
 		SELECT
@@ -147,17 +151,18 @@ func (d *db) Discover(ctx context.Context, UserID int) ([]model.Discover, error)
 					SELECT 
 						ST_DISTANCE
 						(
-							(SELECT location FROM login WHERE user_id = 1 ORDER BY created_at DESC LIMIT 1),
-							(SELECT location FROM login WHERE user_id = id ORDER BY created_at DESC LIMIT 1)
+							(SELECT location FROM login WHERE user_id = $1 ORDER BY created_at DESC LIMIT 1),
+							(SELECT location FROM login WHERE user_id = users.id ORDER BY created_at DESC LIMIT 1)
 						) / 1609.34 
 				)) AS distance
+			-- id, first_name || ' ' || last_name AS name, gender, DATE_PART('year', AGE(dob)) AS age
 		FROM
 			users
 	) AS results
 	WHERE
 		-- filter by gender
 		gender =  (
-								CASE (SELECT gender FROM users WHERE id = 1)
+								CASE (SELECT gender FROM users WHERE id = $1)
 									WHEN 'M'::gender THEN 'F'::gender
 									WHEN 'F'::gender THEN 'M'::gender
 								END
@@ -169,11 +174,12 @@ func (d *db) Discover(ctx context.Context, UserID int) ([]model.Discover, error)
 		distance IS NOT NULL -- corner case for users who have signed up but not logged in yet
 	  AND
 	  -- filter profiles already swipped on
-	  id NOT IN (SELECT id FROM swipe WHERE user_id = $1 AND their_user_id = id)
+	  id NOT IN (SELECT their_user_id FROM swipe WHERE user_id = $1)
 	LIMIT 20
 	;`
 
-	err := d.db.SelectContext(ctx, &discover, statement, 1)
+	err := d.db.SelectContext(ctx, &discover, statement, userID)
+	// err := d.db.SelectContext(ctx, &discover, statement)
 	if err != nil {
 		return nil, err
 	}
@@ -197,9 +203,14 @@ func (d *db) Login(tx *sql.Tx, userID int, long float64, lat float64) error {
 			)
 	;`
 
-	_, err := tx.Query(statement, userID, long, lat)
+	r, err := tx.Query(statement, userID, long, lat)
+	if err != nil {
+		return err
 
-	return err
+	}
+	r.Close()
+
+	return nil
 }
 
 func (d *db) Swipe(ctx context.Context, currentUserID int, theirUserID int, swipeRight bool) error {
@@ -220,7 +231,12 @@ func (d *db) Swipe(ctx context.Context, currentUserID int, theirUserID int, swip
 			)
 	;`
 
-	_, err := d.db.Query(statement, currentUserID, theirUserID, swipeRight)
+	r, err := d.db.Query(statement, currentUserID, theirUserID, swipeRight)
+	if err != nil {
+		return err
+
+	}
+	r.Close()
 
 	return err
 

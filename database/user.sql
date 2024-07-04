@@ -1,4 +1,4 @@
-DROP DATABASE muzz;
+DROP DATABASE IF EXISTS muzz;
 CREATE DATABASE muzz;
 
 \connect muzz

@@ -34,11 +34,11 @@ type Discover struct {
 }
 
 type Swipe struct {
-	UserID     int  `json:"user_id"`
-	SwipeRight bool `json:"swipe_right"`
+	UserID     int  `json:"userID"`
+	SwipeRight bool `json:"swipeRight"`
 }
 
 type Match struct {
 	Matched bool `json:"matched"`
-	MatchID int  `json:"match_id,omitempty"`
+	MatchID int  `json:"matchID,omitempty"`
 }

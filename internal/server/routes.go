@@ -65,6 +65,7 @@ func (s *server) Login() httprouter.Handle {
 			json.NewEncoder(w).Encode(&result)
 			return
 		}
+		// TODO validate input
 
 		token, err := s.service.Login(r.Context(), &login)
 		if err != nil {
@@ -127,7 +128,7 @@ func (s *server) Discover() httprouter.Handle {
 			w.WriteHeader(http.StatusInternalServerError)
 			result.Error = err.Error()
 		} else {
-			w.WriteHeader(http.StatusCreated)
+			w.WriteHeader(http.StatusOK)
 			result.Result = res
 		}
 
@@ -156,6 +157,7 @@ func (s *server) Swipe() httprouter.Handle {
 			json.NewEncoder(w).Encode(&result)
 			return
 		}
+		// TODO validate input
 
 		res, err := s.service.Swipe(r.Context(), userID, swipe.UserID, swipe.SwipeRight)
 		if err != nil {
