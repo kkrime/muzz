@@ -42,7 +42,8 @@ CREATE TABLE public.swipes(
   swipe_right BOOLEAN NOT NULL,
 	created_at TIMESTAMP DEFAULT NOW()
 );
-CREATE INDEX user_swipe_idx ON public.swipes(user_id, their_user_id);
+CREATE INDEX user_swipe_idx ON public.swipes(user_id, their_user_id,swipe_righT);
+CREATE INDEX attractive_idx ON public.swipes(their_user_id, swipe_right);
 
 -- CREATE INDEX name_city ON public.ports(name);
 -- CREATE INDEX name_city ON public.ports(primary_unloc);

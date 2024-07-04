@@ -8,9 +8,6 @@ services:
     depends_on:
       db:
         condition: service_healthy
-    # environment:
-      # CONFIG_FILE_PATH: /go/src/portCaptureServer/config/docker_compose_config.yaml
-      # CONFIG_FILE_PATH: /app/.env
     ports:
     - 8080:8080
 

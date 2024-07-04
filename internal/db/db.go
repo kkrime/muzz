@@ -154,6 +154,7 @@ func (d *db) Discover(ctx context.Context, userID int) ([]model.Discover, error)
 							(SELECT location FROM logins WHERE user_id = users.id ORDER BY created_at DESC LIMIT 1)
 						) / 1609.34 
 				)) AS distance,
+			(SELECT COUNT(*) FROM swipes WHERE their_user_id = users.id AND swipe_right = TRUE) AS attractiveness,
 			deleted_at
 		FROM
 			users
@@ -176,6 +177,8 @@ func (d *db) Discover(ctx context.Context, userID int) ([]model.Discover, error)
 	  AND
 	  -- filter profiles already swipped on
 	  id NOT IN (SELECT their_user_id FROM swipes WHERE user_id = $1)
+	-- order by attractiveness
+	ORDER BY attractiveness
 	LIMIT 20
 	;`
 
