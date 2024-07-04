@@ -142,7 +142,6 @@ func (d *db) Discover(ctx context.Context, userID int) ([]model.Discover, error)
 	statement := `
 	SELECT 
 		id, name, gender, age, distance 
-		-- id, name, gender, age
 	FROM 
 	(
 		SELECT
@@ -151,15 +150,17 @@ func (d *db) Discover(ctx context.Context, userID int) ([]model.Discover, error)
 					SELECT 
 						ST_DISTANCE
 						(
-							(SELECT location FROM login WHERE user_id = $1 ORDER BY created_at DESC LIMIT 1),
-							(SELECT location FROM login WHERE user_id = users.id ORDER BY created_at DESC LIMIT 1)
+							(SELECT location FROM logins WHERE user_id = $1 ORDER BY created_at DESC LIMIT 1),
+							(SELECT location FROM logins WHERE user_id = users.id ORDER BY created_at DESC LIMIT 1)
 						) / 1609.34 
-				)) AS distance
-			-- id, first_name || ' ' || last_name AS name, gender, DATE_PART('year', AGE(dob)) AS age
+				)) AS distance,
+			deleted_at
 		FROM
 			users
 	) AS results
 	WHERE
+		deleted_at IS NULL
+		AND
 		-- filter by gender
 		gender =  (
 								CASE (SELECT gender FROM users WHERE id = $1)
@@ -174,12 +175,11 @@ func (d *db) Discover(ctx context.Context, userID int) ([]model.Discover, error)
 		distance IS NOT NULL -- corner case for users who have signed up but not logged in yet
 	  AND
 	  -- filter profiles already swipped on
-	  id NOT IN (SELECT their_user_id FROM swipe WHERE user_id = $1)
+	  id NOT IN (SELECT their_user_id FROM swipes WHERE user_id = $1)
 	LIMIT 20
 	;`
 
 	err := d.db.SelectContext(ctx, &discover, statement, userID)
-	// err := d.db.SelectContext(ctx, &discover, statement)
 	if err != nil {
 		return nil, err
 	}
@@ -191,7 +191,7 @@ func (d *db) Login(tx *sql.Tx, userID int, long float64, lat float64) error {
 
 	statement := `
 		INSERT INTO
-			login
+			logins
 			(
 				user_id,
 				location
@@ -217,7 +217,7 @@ func (d *db) Swipe(ctx context.Context, currentUserID int, theirUserID int, swip
 
 	statement := `
 		INSERT INTO
-			swipe
+			swipes
 			(
 				user_id,
 				their_user_id,
@@ -251,9 +251,9 @@ func (d *db) Match(ctx context.Context, currentUserID int, theirUserID int) (boo
 		( 
 			COALESCE
 			( 
-				(SELECT TRUE FROM swipe WHERE user_id = $1 AND their_user_id = $2 AND swipe_right = TRUE LIMIT 1) 
+				(SELECT TRUE FROM swipes WHERE user_id = $1 AND their_user_id = $2 AND swipe_right = TRUE LIMIT 1) 
 				AND 
-				(SELECT TRUE FROM swipe WHERE user_id = $2 AND their_user_id = $1 AND swipe_right = TRUE LIMIT 1)
+				(SELECT TRUE FROM swipes WHERE user_id = $2 AND their_user_id = $1 AND swipe_right = TRUE LIMIT 1)
 			, 'f')
 			)	AS match
 		;`

@@ -9,8 +9,6 @@ CREATE TYPE public.gender AS ENUM (
 	'F'
 );
 
--- TODO: add indexes
-
 CREATE TABLE public.users(
   id SERIAL NOT NULL PRIMARY KEY,
 	first_name CHARACTER VARYING(100) NOT NULL,
@@ -23,30 +21,33 @@ CREATE TABLE public.users(
 	updated_at TIMESTAMP DEFAULT NOW(),
 	deleted_at TIMESTAMP DEFAULT NULL
 );
+CREATE INDEX user_email_idx ON public.users(email)
+   WHERE deleted_at IS null;
+CREATE INDEX user_email_all_idx ON public.users(email);
+CREATE INDEX user_gender_idx ON public.users(gender);
 
-CREATE TABLE public.login(
+CREATE TABLE public.logins(
   id SERIAL NOT NULL PRIMARY KEY,
   user_id INTEGER NOT NULL REFERENCES public.users(id),
   location GEOGRAPHY(POINT, 4326) NOT NULL,
 	created_at TIMESTAMP DEFAULT NOW()
 );
+CREATE INDEX user_id_login_idx ON public.logins(user_id);
+CREATE INDEX created_at_login_idx ON public.logins(created_at);
 
-CREATE TABLE public.swipe(
+CREATE TABLE public.swipes(
   id SERIAL NOT NULL PRIMARY KEY,
   user_id INTEGER NOT NULL REFERENCES public.users(id),
   their_user_id INTEGER NOT NULL REFERENCES public.users(id),
   swipe_right BOOLEAN NOT NULL,
 	created_at TIMESTAMP DEFAULT NOW()
 );
+CREATE INDEX user_swipe_idx ON public.swipes(user_id, their_user_id);
 
 -- CREATE INDEX name_city ON public.ports(name);
 -- CREATE INDEX name_city ON public.ports(primary_unloc);
 -- CREATE UNIQUE INDEX no_duplicate_code ON public.ports(primary_unloc,deleted_at)
 --    WHERE deleted_at IS null;
-
--- CREATE TABLE public.alias(
---     port_id INTEGER REFERENCES public.ports NOT NULL,
---     name CHARACTER VARYING(100) NOT NULL
 -- );
 -- CREATE UNIQUE INDEX no_duplicate_alias ON public.alias(port_id,name);
 

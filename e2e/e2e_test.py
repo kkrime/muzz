@@ -76,7 +76,7 @@ while match != userCount:
                     swipeRight = True
                 print(p)
                 print(swipeRight)
-                swipe = {"userID": p['id'], 'swipeRight':swipeRight}
+                swipe = {"userID": p['id'], 'swipeRight': swipeRight}
                 res = post("localhost", 8080, "/swipe", json.dumps(swipe, indent=2), headers)
                 print(res)
 
