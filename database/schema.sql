@@ -44,22 +44,3 @@ CREATE TABLE public.swipes(
 );
 CREATE INDEX user_swipe_idx ON public.swipes(user_id, their_user_id,swipe_righT);
 CREATE INDEX attractive_idx ON public.swipes(their_user_id, swipe_right);
-
--- CREATE INDEX name_city ON public.ports(name);
--- CREATE INDEX name_city ON public.ports(primary_unloc);
--- CREATE UNIQUE INDEX no_duplicate_code ON public.ports(primary_unloc,deleted_at)
---    WHERE deleted_at IS null;
--- );
--- CREATE UNIQUE INDEX no_duplicate_alias ON public.alias(port_id,name);
-
--- CREATE TABLE public.regions(
---     port_id INTEGER REFERENCES public.ports NOT NULL,
---     name CHARACTER VARYING(100) NOT NULL
--- );
--- CREATE UNIQUE INDEX no_duplicate_regions ON public.regions(port_id,name);
-
--- CREATE TABLE public.unlocs(
---     port_id INTEGER REFERENCES public.ports NOT NULL,
---     name CHARACTER VARYING(100) NOT NULL
--- );
--- CREATE UNIQUE INDEX no_duplicate_unlocs ON public.unlocs(port_id,name);

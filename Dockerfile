@@ -1,18 +1,3 @@
-# FROM golang:latest
-
-# WORKDIR /go/src/muzz
-# ADD . /go/src/muzz
-# WORKDIR /go/src/muzz
-# RUN go get -d -v muzz
-# RUN go install cmd/muzz/main.go
-# COPY .env /app/
-
-# RUN rm -fr /go/src/muzz
-# RUN ls /go/
-
-# ENTRYPOINT ["~/go/bin/muzz"]
-
-
 FROM golang:latest as builder
 ADD . /go/src/muzz
 WORKDIR /go/src/muzz

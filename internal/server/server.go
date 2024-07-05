@@ -48,7 +48,7 @@ func NewServer(config *config.Config) (Server, error) {
 }
 
 func (s *server) Run() error {
-	return http.ListenAndServe(":8080", s.router)
+	return http.ListenAndServe("0.0.0.0:8080", s.router)
 }
 
 func (s *server) Login() httprouter.Handle {

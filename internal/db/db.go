@@ -22,7 +22,8 @@ type Tx interface {
 
 type DB interface {
 	BeginTx(ctx context.Context) (*sql.Tx, error)
-	Login(tx *sql.Tx, userID int, long float64, lat float64) error
+	Commit(t Tx) error
+
 	CreateUser(
 		ctx context.Context,
 		firstName string,
@@ -31,11 +32,12 @@ type DB interface {
 		password []byte,
 		gender string,
 		dob time.Time) (int, error)
+	Login(tx *sql.Tx, userID int, long float64, lat float64) error
 	GetUserPassword(ctx context.Context, email string) (*model.UserPassword, error)
+
 	Discover(ctx context.Context, UserId int) ([]model.Discover, error)
 	Swipe(ctx context.Context, currentUserID int, theirUserID int, swipeRight bool) error
 	Match(ctx context.Context, currentUserID int, theirUserID int) (bool, error)
-	Commit(t Tx) error
 }
 
 type db struct {
@@ -51,9 +53,6 @@ func NewDB(config *config.Config) (DB, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	// db_.DB.SetMaxIdleConns(100)
-	// db_.DB.SetMaxOpenConns(100)
 
 	err = db_.Ping()
 	if err != nil {
@@ -129,6 +128,7 @@ func (d *db) GetUserPassword(ctx context.Context, email string) (*model.UserPass
 	if err != nil {
 		return nil, err
 	}
+	// user doesn't exist
 	if userPassword == nil {
 		return nil, nil
 	}
@@ -146,14 +146,14 @@ func (d *db) Discover(ctx context.Context, userID int) ([]model.Discover, error)
 	(
 		SELECT
 			id, first_name || ' ' || last_name AS name, gender, DATE_PART('year', AGE(dob)) AS age,
-				CEIL((
+				COALESCE(NULLIF(CEIL((
 					SELECT 
 						ST_DISTANCE
 						(
 							(SELECT location FROM logins WHERE user_id = $1 ORDER BY created_at DESC LIMIT 1),
 							(SELECT location FROM logins WHERE user_id = users.id ORDER BY created_at DESC LIMIT 1)
 						) / 1609.34 
-				)) AS distance,
+				)), 0), 1) AS distance,
 			(SELECT COUNT(*) FROM swipes WHERE their_user_id = users.id AND swipe_right = TRUE) AS attractiveness,
 			deleted_at
 		FROM
@@ -170,6 +170,7 @@ func (d *db) Discover(ctx context.Context, userID int) ([]model.Discover, error)
 								END
 							) 
 		AND
+		-- TODO make age configurable
 		-- filter by age
 		age >= 21 AND age <= 35
 		AND 
@@ -179,6 +180,7 @@ func (d *db) Discover(ctx context.Context, userID int) ([]model.Discover, error)
 	  id NOT IN (SELECT their_user_id FROM swipes WHERE user_id = $1)
 	-- order by attractiveness
 	ORDER BY attractiveness
+	-- TODO make LIMIT configurable
 	LIMIT 20
 	;`
 
@@ -237,7 +239,6 @@ func (d *db) Swipe(ctx context.Context, currentUserID int, theirUserID int, swip
 	r, err := d.db.Query(statement, currentUserID, theirUserID, swipeRight)
 	if err != nil {
 		return err
-
 	}
 	r.Close()
 
