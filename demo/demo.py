@@ -79,15 +79,15 @@ while match != userCount:
                 res = post("0.0.0.0", 8080, "/swipe", json.dumps(swipe, indent=2), headers)
 
                 if swipeRight:
-                    print(u['name'] + " swiped right on " + p['name'])
+                    print(u['name'] + " swiped RIGHT on " + p['name'])
                 else:
-                    print(u['name'] + " swiped left on " + p['name'])
+                    print(u['name'] + " swiped LEFT on " + p['name'])
 
                 print('distance ' + p["distanceFromMe"])
 
                 # print(swipeRight)
                 if res['result']['matched']:
-                    print("                                                    There's a match!")
+                    print("                                                    THERE'S A MATCH!")
 
             print("\n")
             print("\n")
