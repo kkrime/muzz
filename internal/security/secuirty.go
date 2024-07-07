@@ -30,6 +30,8 @@ func (s *security) CreateToken(m map[string]any) (string, error) {
 	mapClaim := jwt.MapClaims(m)
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, mapClaim)
 
+	// TODO add expiary to token
+
 	return token.SignedString(s.tokenKey)
 }
 

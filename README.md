@@ -30,4 +30,4 @@ This script is more for demonstatative purposes than actual e2e tests, although 
 
 ## To Run The Demo
 1. start the main service using `docker-compose up`
-2. from inside the `demo` folder, run: `docker build . -t demo && docker run -t --network host demo`
+2. from inside the `demo` folder, run: `docker build . -t demo && docker run --network host -t demo`

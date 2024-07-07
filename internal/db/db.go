@@ -179,7 +179,7 @@ func (d *db) Discover(ctx context.Context, userID int) ([]model.Discover, error)
 	  -- filter profiles already swipped on
 	  id NOT IN (SELECT their_user_id FROM swipes WHERE user_id = $1)
 	-- order by attractiveness
-	ORDER BY attractiveness
+	ORDER BY attractiveness DESC
 	-- TODO make LIMIT configurable
 	LIMIT 20
 	;`
