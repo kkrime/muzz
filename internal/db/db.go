@@ -136,6 +136,7 @@ func (d *db) GetUserPassword(ctx context.Context, email string) (*model.UserPass
 	return &userPassword[0], nil
 }
 
+// TODO pagination
 func (d *db) Discover(ctx context.Context, userID int) ([]model.Discover, error) {
 	var discover []model.Discover
 
