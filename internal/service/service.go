@@ -52,7 +52,6 @@ func NewService(config *config.Config) (Service, error) {
 
 func (s *service) Login(ctx context.Context, login *model.Login) (string, error) {
 
-	ctx.Deadline()
 	userPassword, err := s.db.GetUserPassword(ctx, login.Email)
 	if err != nil {
 		return "", err
