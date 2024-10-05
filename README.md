@@ -1,4 +1,5 @@
 # Muzz Backend Engineering Assignment
+This repository is the solution - [**this**](https://github.com/kkrime/muzz/blob/main/Muzz%20-%20Go%20Backend%20Exercise%20(2024).pdf) is the problem.
 
 ## Getting Started
 Everything is containerized using docker-compose, so from the root of the repoistory you can run the db and backend by;
