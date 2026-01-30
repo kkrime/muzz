@@ -4,10 +4,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
+
 	"muzz/internal/config"
 	"muzz/internal/model"
 	"muzz/internal/service"
-	"net/http"
 
 	"github.com/golang-jwt/jwt"
 	"github.com/golang-jwt/jwt/request"
@@ -52,9 +53,7 @@ func (s *server) Run() error {
 }
 
 func (s *server) Login() httprouter.Handle {
-
 	return func(w http.ResponseWriter, r *http.Request, pr httprouter.Params) {
-
 		var result model.Result
 		var login model.Login
 
@@ -92,9 +91,7 @@ func (s *server) Login() httprouter.Handle {
 }
 
 func (s *server) CreateUser() httprouter.Handle {
-
 	return func(w http.ResponseWriter, r *http.Request, pr httprouter.Params) {
-
 		var result model.Result
 
 		res, err := s.service.CreateUser(r.Context())
@@ -111,10 +108,10 @@ func (s *server) CreateUser() httprouter.Handle {
 }
 
 func (s *server) Discover() httprouter.Handle {
-
 	return func(w http.ResponseWriter, r *http.Request, pr httprouter.Params) {
 		var result model.Result
 
+		// TODO move this to middleware
 		userID, err := authorize(r)
 		if err != nil {
 			w.WriteHeader(http.StatusUnauthorized)
@@ -137,10 +134,10 @@ func (s *server) Discover() httprouter.Handle {
 }
 
 func (s *server) Swipe() httprouter.Handle {
-
 	return func(w http.ResponseWriter, r *http.Request, pr httprouter.Params) {
 		var result model.Result
 
+		// TODO move this to middleware
 		userID, err := authorize(r)
 		if err != nil {
 			w.WriteHeader(http.StatusUnauthorized)
@@ -172,12 +169,12 @@ func (s *server) Swipe() httprouter.Handle {
 	}
 }
 
+// TODO move this to middleware
 func authorize(r *http.Request) (int, error) {
-	var claims = jwt.MapClaims{}
+	claims := jwt.MapClaims{}
 	token, err := request.ParseFromRequestWithClaims(r, request.AuthorizationHeaderExtractor, &claims, func(token *jwt.Token) (interface{}, error) {
 		return []byte("secret"), nil
 	})
-
 	if err != nil {
 		return 0, err
 	}
