@@ -31,7 +31,7 @@ jobs:
       run: docker compose build
 
     - name: Run Muzz with Docker
-      run: docker compose up
+      run: docker compose up -d
 
     - name: Run e2e Tests
       run: cd demo && docker build . -t demo && docker run --network host -t demo
